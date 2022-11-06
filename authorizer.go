@@ -46,7 +46,7 @@ func (a *DefaultImpl) Authorize(ctx context.Context) (Authentication, error) {
 		}
 		err = browser.OpenURL(toOpen)
 		if err != nil {
-			a.logger.Errorf("error opening browser: %v", err)
+			return Authentication{}, errors.Wrap(err, "error opening browser window")
 		}
 	}
 
