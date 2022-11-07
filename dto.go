@@ -31,13 +31,21 @@ type accessTokenContentDTO struct {
 }
 
 type idTokenContentDTO struct {
-	commonUserInfoDTO
 	jwt.RegisteredClaims
-	UpdatedAt time.Time `json:"updated_at"`
+	Nickname      string    `json:"nickname"`
+	Name          string    `json:"name"`
+	Picture       string    `json:"picture"`
+	Email         string    `json:"email"`
+	EmailVerified bool      `json:"email_verified"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type userInfoResponseDTO struct {
-	commonUserInfoDTO
+	Nickname            string `json:"nickname"`
+	Name                string `json:"name"`
+	Picture             string `json:"picture"`
+	Email               string `json:"email"`
+	EmailVerified       bool   `json:"email_verified"`
 	Sub                 string `json:"sub"`
 	GivenName           string `json:"given_name"`
 	FamilyName          string `json:"family_name"`
@@ -55,14 +63,6 @@ type userInfoResponseDTO struct {
 		Country string `json:"country"`
 	} `json:"address"`
 	UpdatedAt string `json:"updated_at"`
-}
-
-type commonUserInfoDTO struct {
-	Nickname      string `json:"nickname"`
-	Name          string `json:"name"`
-	Picture       string `json:"picture"`
-	Email         string `json:"email"`
-	EmailVerified bool   `json:"email_verified"`
 }
 
 type refreshTokenResponseDTO struct {

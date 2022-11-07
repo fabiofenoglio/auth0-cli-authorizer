@@ -139,34 +139,17 @@ func (a *DefaultImpl) buildAuthentication(ctx context.Context, accessToken, idTo
 		return Authentication{}, errors.Wrap(err, "error decoding access token")
 	}
 
-	var userInfo commonUserInfoDTO
-
 	if idToken != "" {
 		var idTokenContent idTokenContentDTO
 		_, _, err = jwt.NewParser().ParseUnverified(idToken, &idTokenContent)
 		if err != nil {
 			return Authentication{}, errors.Wrap(err, "error decoding identity token")
 		}
-		userInfo = idTokenContent.commonUserInfoDTO
-
-	} else {
-		userInfoResponse, err := a.getUserInfo(ctx, accessToken)
-		if err != nil {
-			return Authentication{}, errors.Wrap(err, "error fetching user profile")
-		}
-		userInfo = userInfoResponse.commonUserInfoDTO
 	}
 
-	var name string
-	switch {
-	case userInfo.Nickname != "":
-		name = userInfo.Nickname
-	case userInfo.Name != "":
-		name = userInfo.Name
-	case userInfo.Email != "":
-		name = userInfo.Email
-	default:
-		name = accessTokenContent.Subject
+	userInfoResponse, err := a.getUserInfo(ctx, accessToken)
+	if err != nil {
+		return Authentication{}, errors.Wrap(err, "error fetching user profile")
 	}
 
 	expiresAt := time.Time{}
@@ -176,13 +159,32 @@ func (a *DefaultImpl) buildAuthentication(ctx context.Context, accessToken, idTo
 
 	return Authentication{
 		User: User{
-			Name:        name,
-			Email:       userInfo.Email,
-			Permissions: accessTokenContent.Permissions,
+			Nickname:            userInfoResponse.Nickname,
+			Name:                userInfoResponse.Name,
+			Picture:             userInfoResponse.Picture,
+			Email:               userInfoResponse.Email,
+			EmailVerified:       userInfoResponse.EmailVerified,
+			Sub:                 userInfoResponse.Sub,
+			GivenName:           userInfoResponse.GivenName,
+			FamilyName:          userInfoResponse.FamilyName,
+			MiddleName:          userInfoResponse.MiddleName,
+			PreferredUsername:   userInfoResponse.PreferredUsername,
+			Profile:             userInfoResponse.Profile,
+			Website:             userInfoResponse.Website,
+			Gender:              userInfoResponse.Gender,
+			Birthdate:           userInfoResponse.Birthdate,
+			Zoneinfo:            userInfoResponse.Zoneinfo,
+			Locale:              userInfoResponse.Locale,
+			PhoneNumber:         userInfoResponse.PhoneNumber,
+			PhoneNumberVerified: userInfoResponse.PhoneNumberVerified,
+			Address:             userInfoResponse.Address,
+			UpdatedAt:           userInfoResponse.UpdatedAt,
+			Permissions:         accessTokenContent.Permissions,
 		},
 		Tokens: Tokens{
 			AccessToken:  accessToken,
 			RefreshToken: refreshToken,
+			IdToken:      idToken,
 			ExpiresAt:    expiresAt,
 		},
 	}, nil
