@@ -10,31 +10,11 @@ type Logger interface {
 	Info(args ...interface{})
 	Warning(args ...interface{})
 	Error(args ...interface{})
-	Debugf(msg string, args ...interface{})
-	Infof(msg string, args ...interface{})
-	Warningf(msg string, args ...interface{})
-	Errorf(msg string, args ...interface{})
 }
 
 type consoleLogger struct{}
 
 var _ Logger = &consoleLogger{}
-
-func (c consoleLogger) Debugf(msg string, args ...interface{}) {
-	fmt.Println("[debug] " + fmt.Sprintf(msg, args...))
-}
-
-func (c consoleLogger) Infof(msg string, args ...interface{}) {
-	fmt.Println("[info]  " + fmt.Sprintf(msg, args...))
-}
-
-func (c consoleLogger) Warningf(msg string, args ...interface{}) {
-	fmt.Println("[WARN]  " + fmt.Sprintf(msg, args...))
-}
-
-func (c consoleLogger) Errorf(msg string, args ...interface{}) {
-	fmt.Println("[ERROR] " + fmt.Sprintf(msg, args...))
-}
 
 func (c consoleLogger) Debug(args ...interface{}) {
 	fmt.Println("[debug] " + c.message(args))
@@ -64,22 +44,6 @@ type noOpLogger struct{}
 
 var _ Logger = &noOpLogger{}
 
-func (c noOpLogger) Debugf(_ string, _ ...interface{}) {
-	// NOP
-}
-
-func (c noOpLogger) Infof(_ string, _ ...interface{}) {
-	// NOP
-}
-
-func (c noOpLogger) Warningf(_ string, _ ...interface{}) {
-	// NOP
-}
-
-func (c noOpLogger) Errorf(_ string, _ ...interface{}) {
-	// NOP
-}
-
 func (c noOpLogger) Debug(_ ...interface{}) {
 	// NOP
 }
@@ -94,4 +58,40 @@ func (c noOpLogger) Warning(_ ...interface{}) {
 
 func (c noOpLogger) Error(_ ...interface{}) {
 	// NOP
+}
+
+type loggerWrapper struct {
+	underlying Logger
+}
+
+func (a *loggerWrapper) Debug(args ...interface{}) {
+	a.underlying.Debug(args...)
+}
+
+func (a *loggerWrapper) Info(args ...interface{}) {
+	a.underlying.Info(args...)
+}
+
+func (a *loggerWrapper) Warning(args ...interface{}) {
+	a.underlying.Warning(args...)
+}
+
+func (a *loggerWrapper) Error(args ...interface{}) {
+	a.underlying.Error(args...)
+}
+
+func (a *loggerWrapper) Debugf(msg string, args ...interface{}) {
+	a.underlying.Debug(fmt.Sprintf(msg, args...))
+}
+
+func (a *loggerWrapper) Infof(msg string, args ...interface{}) {
+	a.underlying.Info(fmt.Sprintf(msg, args...))
+}
+
+func (a *loggerWrapper) Warningf(msg string, args ...interface{}) {
+	a.underlying.Warning(fmt.Sprintf(msg, args...))
+}
+
+func (a *loggerWrapper) Errorf(msg string, args ...interface{}) {
+	a.underlying.Error(fmt.Sprintf(msg, args...))
 }

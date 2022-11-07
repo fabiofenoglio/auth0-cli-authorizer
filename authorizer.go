@@ -27,7 +27,7 @@ type DefaultImpl struct {
 	storeBuilder                storeBuilder
 	storeRestoreMinDuration     time.Duration
 	store                       store
-	logger                      Logger
+	logger                      *loggerWrapper
 }
 
 var _ Authorizer = &DefaultImpl{}

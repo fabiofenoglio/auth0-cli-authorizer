@@ -16,12 +16,12 @@ type store interface {
 type fileSystemStore struct {
 	tenant   string
 	basePath string
-	logger   Logger
+	logger   *loggerWrapper
 }
 
 var _ store = &fileSystemStore{}
 
-func newFileSystemStore(tenant, basePath string, logger Logger) (*fileSystemStore, error) {
+func newFileSystemStore(tenant, basePath string, logger *loggerWrapper) (*fileSystemStore, error) {
 	if tenant == "" || basePath == "" {
 		return nil, errors.New("missing tenant or basePath")
 	}
@@ -105,7 +105,7 @@ type appDataStore struct {
 
 var _ store = &appDataStore{}
 
-func newAppDataStore(tenant string, logger Logger) (*appDataStore, error) {
+func newAppDataStore(tenant string, logger *loggerWrapper) (*appDataStore, error) {
 	if tenant == "" {
 		return nil, errors.New("missing tenant or basePath")
 	}

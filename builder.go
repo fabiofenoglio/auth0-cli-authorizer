@@ -41,7 +41,9 @@ func New(domain, clientID, audience string, options ...Option) (*DefaultImpl, er
 		prefillDeviceCode:    true,
 		autoOpenBrowser:      true,
 		requireOfflineAccess: true,
-		logger:               &consoleLogger{},
+		logger: &loggerWrapper{
+			underlying: &consoleLogger{},
+		},
 	}
 
 	for _, option := range options {
@@ -81,7 +83,9 @@ func (o *optionLogger) apply(target *DefaultImpl) error {
 	if o.value == nil {
 		o.value = &noOpLogger{}
 	}
-	target.logger = o.value
+	target.logger = &loggerWrapper{
+		underlying: o.value,
+	}
 	return nil
 }
 
@@ -154,7 +158,7 @@ func (o *optionRequireOfflineAccess) apply(target *DefaultImpl) error {
 	return nil
 }
 
-type storeBuilder func(hash string, logger Logger) (store, error)
+type storeBuilder func(hash string, logger *loggerWrapper) (store, error)
 
 type optionStore struct {
 	storeBuilder storeBuilder
@@ -164,7 +168,7 @@ type optionStore struct {
 func WithAppDataStore(minDuration time.Duration) Option {
 	return &optionStore{
 		minDuration: minDuration,
-		storeBuilder: func(hash string, logger Logger) (store, error) {
+		storeBuilder: func(hash string, logger *loggerWrapper) (store, error) {
 			return newAppDataStore(hash, logger)
 		},
 	}
