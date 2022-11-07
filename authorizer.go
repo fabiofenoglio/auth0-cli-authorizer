@@ -24,6 +24,9 @@ type DefaultImpl struct {
 	autoOpenBrowser             bool
 	httpClientCustomizer        HTTPClientCustomizer
 	deviceConfirmPromptCallback DeviceConfirmPromptCallback
+	storeBuilder                storeBuilder
+	storeRestoreMinDuration     time.Duration
+	store                       store
 	logger                      Logger
 }
 
@@ -32,6 +35,18 @@ var _ Authorizer = &DefaultImpl{}
 func (a *DefaultImpl) Authorize(ctx context.Context) (Authentication, error) {
 	if ctx.Err() != nil {
 		return Authentication{}, ctx.Err()
+	}
+
+	if a.store != nil {
+		loaded, err := a.loadFromStore(ctx)
+		if err != nil {
+			a.logger.Warningf("failed to load authentication from store: %v", err)
+		} else if loaded == nil {
+			a.logger.Debug("no authentication available from store")
+		} else {
+			a.logger.Debug("loaded cached authentication from store")
+			return *loaded, nil
+		}
 	}
 
 	deviceCodeResponse, err := a.getDeviceCode(ctx)
@@ -69,12 +84,19 @@ func (a *DefaultImpl) Authorize(ctx context.Context) (Authentication, error) {
 		return Authentication{}, errors.Wrap(err, "error waiting for authorization")
 	}
 
-	user, err := a.buildAuthentication(ctx, tokenResponse.AccessToken, tokenResponse.IdToken, tokenResponse.RefreshToken)
+	authentication, err := a.buildAuthentication(ctx, tokenResponse.AccessToken, tokenResponse.IdToken, tokenResponse.RefreshToken)
 	if err != nil {
-		return Authentication{}, errors.Wrap(err, "error building user")
+		return Authentication{}, errors.Wrap(err, "error building authentication")
 	}
 
-	return user, nil
+	if a.store != nil {
+		err = a.store.Save(authentication)
+		if err != nil {
+			a.logger.Errorf("error storing authentication in store: %v", err)
+		}
+	}
+
+	return authentication, nil
 }
 
 func (a *DefaultImpl) Refresh(ctx context.Context, refreshToken string) (Authentication, error) {
@@ -96,12 +118,17 @@ func (a *DefaultImpl) Refresh(ctx context.Context, refreshToken string) (Authent
 		newRefreshToken = refreshTokenResponse.RefreshToken
 	}
 
-	auth, err := a.buildAuthentication(ctx, refreshTokenResponse.AccessToken, refreshTokenResponse.IdToken, newRefreshToken)
+	authentication, err := a.buildAuthentication(ctx, refreshTokenResponse.AccessToken, refreshTokenResponse.IdToken, newRefreshToken)
 	if err != nil {
-		return Authentication{}, errors.Wrap(err, "error building user")
+		return Authentication{}, errors.Wrap(err, "error building authentication")
 	}
 
-	return auth, nil
+	err = a.store.Save(authentication)
+	if err != nil {
+		a.logger.Errorf("error saving the refreshed authentication: %v", err)
+	}
+
+	return authentication, nil
 }
 
 func (a *DefaultImpl) buildAuthentication(ctx context.Context, accessToken, idToken, refreshToken string) (Authentication, error) {
@@ -197,4 +224,45 @@ func (a *DefaultImpl) pollForToken(ctx context.Context, deviceCode string, polli
 	}
 
 	return token, nil
+}
+
+func (a *DefaultImpl) loadFromStore(ctx context.Context) (*Authentication, error) {
+	if a.store == nil {
+		return nil, errors.New("missing store implementation")
+	}
+
+	loaded, err := a.store.Load()
+	if err != nil {
+		return nil, err
+	}
+	if loaded == nil {
+		return nil, nil
+	}
+
+	if loaded.Tokens.ExpiresAt.IsZero() {
+		return nil, errors.New("restored tokens have an unknown expiration date")
+	}
+
+	expiresIn := loaded.Tokens.ExpiresAt.Sub(time.Now())
+
+	if expiresIn >= a.storeRestoreMinDuration {
+		a.logger.Debug("cache hit for store")
+		return loaded, nil
+	}
+
+	a.logger.Debugf("cached authentication in store is expired (valid for %v, under threshold of %v)",
+		expiresIn, a.storeRestoreMinDuration)
+
+	if loaded.Tokens.RefreshToken == "" {
+		return nil, errors.New("restored tokens could not be refreshed as no refresh token is available")
+	}
+
+	refreshed, err := a.Refresh(ctx, loaded.Tokens.RefreshToken)
+	if err != nil {
+		return nil, errors.Wrap(err, "error attempting to refresh the token")
+	}
+
+	a.logger.Debug("cached authentication was refreshed successfully")
+
+	return &refreshed, nil
 }

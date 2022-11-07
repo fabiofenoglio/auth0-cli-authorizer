@@ -75,7 +75,11 @@ func main() {
 }
 ```
 
-### Complete example
+### Caching on local filesystem
+
+If you enable a store option (like `WithAppDataStore`) the token will
+automatically be saved and restored from a local cache, optionally
+refreshing it as needed.
 
 ```go
 package main
@@ -84,6 +88,49 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
+
+	authorizer "github.com/fabiofenoglio/auth0-cli-authorizer"
+)
+
+func main() {
+	// you can customize many options with authorizer.With[...]
+	auth, _ := authorizer.New(
+		"https://<your-domain>.auth0.com",
+		"yourClientID",
+		"https://<your-audience>",
+		// will require a refresh_token
+		authorizer.WithRequireOfflineAccess(true),
+		
+		// will cache the token on filesystem
+		// and refresh it automatically 
+		// if it's expired or expires in less than 5 minutes
+		authorizer.WithAppDataStore(5*time.Minute), 
+	)
+
+	authorization, err := auth.Authorize(context.TODO())
+	if err != nil {
+		panic(err)
+	}
+
+	// use authorization.Tokens.AccessToken from now on
+	// if you run this program again after the first time
+	// you will not be prompted for authorization again
+	
+	pretty, _ := json.MarshalIndent(authorization, "", "  ")
+	fmt.Println(string(pretty))
+}
+```
+
+### Complete example
+
+```go
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"time"
 
 	authorizer "github.com/fabiofenoglio/auth0-cli-authorizer"
 	"github.com/sirupsen/logrus"
@@ -106,9 +153,19 @@ func main() {
 		"yourClientID",
 		"https://<your-audience>",
 		authorizer.WithLogger(logger),
+		
+		// will require a refresh_token
 		authorizer.WithRequireOfflineAccess(true),
+		
+		// will automatically open the browser if needed,
+		// prefilled with the device code
 		authorizer.WithAutoOpenBrowser(true),
 		authorizer.WithPrefillDeviceCode(true),
+
+		// will cache the token on filesystem
+		// and refresh it automatically 
+		// if it's expired or expires in less than 5 minutes
+		authorizer.WithAppDataStore(5*time.Minute), 
 	)
 
 	authorization, err := auth.Authorize(context.TODO())

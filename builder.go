@@ -1,8 +1,11 @@
 package auth0cliauthorizer
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -49,6 +52,18 @@ func New(domain, clientID, audience string, options ...Option) (*DefaultImpl, er
 
 	if !v.autoOpenBrowser && v.deviceConfirmPromptCallback == nil {
 		return nil, errors.New("autoOpenBrowser is disabled and no deviceConfirmPromptCallback was provided")
+	}
+
+	if v.storeBuilder != nil {
+		h := md5.New()
+		h.Write([]byte(domain + "|" + clientID + "|" + audience))
+		hash := hex.EncodeToString(h.Sum(nil))
+
+		storeImpl, err := v.storeBuilder(hash, v.logger)
+		if err != nil {
+			return nil, errors.Wrap(err, "error building the store")
+		}
+		v.store = storeImpl
 	}
 
 	return v, nil
@@ -136,5 +151,27 @@ func WithRequireOfflineAccess(requireOfflineAccess bool) Option {
 
 func (o *optionRequireOfflineAccess) apply(target *DefaultImpl) error {
 	target.requireOfflineAccess = o.value
+	return nil
+}
+
+type storeBuilder func(hash string, logger Logger) (store, error)
+
+type optionStore struct {
+	storeBuilder storeBuilder
+	minDuration  time.Duration
+}
+
+func WithAppDataStore(minDuration time.Duration) Option {
+	return &optionStore{
+		minDuration: minDuration,
+		storeBuilder: func(hash string, logger Logger) (store, error) {
+			return newAppDataStore(hash, logger)
+		},
+	}
+}
+
+func (o *optionStore) apply(target *DefaultImpl) error {
+	target.storeRestoreMinDuration = o.minDuration
+	target.storeBuilder = o.storeBuilder
 	return nil
 }
