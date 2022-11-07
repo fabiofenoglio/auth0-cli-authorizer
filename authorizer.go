@@ -243,7 +243,7 @@ func (a *DefaultImpl) loadFromStore(ctx context.Context) (*Authentication, error
 		return nil, errors.New("restored tokens have an unknown expiration date")
 	}
 
-	expiresIn := loaded.Tokens.ExpiresAt.Sub(time.Now())
+	expiresIn := time.Until(loaded.Tokens.ExpiresAt)
 
 	if expiresIn >= a.storeRestoreMinDuration {
 		a.logger.Debug("cache hit for store")
