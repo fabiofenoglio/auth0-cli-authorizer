@@ -32,11 +32,13 @@ func New(domain, clientID, audience string, options ...Option) (*DefaultImpl, er
 	}
 
 	v := &DefaultImpl{
-		domain:            domainURL,
-		clientID:          clientID,
-		audience:          audience,
-		prefillDeviceCode: true,
-		logger:            &consoleLogger{},
+		domain:               domainURL,
+		clientID:             clientID,
+		audience:             audience,
+		prefillDeviceCode:    true,
+		autoOpenBrowser:      true,
+		requireOfflineAccess: true,
+		logger:               &consoleLogger{},
 	}
 
 	for _, option := range options {
