@@ -11,6 +11,7 @@ import (
 type store interface {
 	Save(authentication Authentication) error
 	Load() (*Authentication, error)
+	Clear() error
 }
 
 type fileSystemStore struct {
@@ -98,6 +99,17 @@ func (f *fileSystemStore) Load() (*Authentication, error) {
 	return &deserialized, nil
 }
 
+func (f *fileSystemStore) Clear() error {
+	p := f.fullPath()
+	if checkFileExists(p) {
+		f.logger.Debugf("removing authentication stored in %s", p)
+		if err := os.Remove(p); err != nil {
+			return errors.Wrap(err, "error removing authentication file")
+		}
+	}
+	return nil
+}
+
 type appDataStore struct {
 	underlying store
 	// TODO
@@ -135,7 +147,11 @@ func (a appDataStore) Load() (*Authentication, error) {
 	return a.underlying.Load()
 }
 
+func (a appDataStore) Clear() error {
+	return a.underlying.Clear()
+}
+
 func checkFileExists(filePath string) bool {
-	_, error := os.Stat(filePath)
-	return !errors.Is(error, os.ErrNotExist)
+	_, err := os.Stat(filePath)
+	return !errors.Is(err, os.ErrNotExist)
 }

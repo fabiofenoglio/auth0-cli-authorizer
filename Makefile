@@ -14,9 +14,3 @@ check:
 	make clean
 	make lint
 	make test
-build-release:
-	make check
-	goreleaser release --snapshot --rm-dist
-push-release:
-	make check
-	goreleaser release --rm-dist

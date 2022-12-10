@@ -13,6 +13,7 @@ import (
 type Authorizer interface {
 	Authorize(ctx context.Context) (Authentication, error)
 	Refresh(ctx context.Context, refreshToken string) (Authentication, error)
+	Logout() error
 }
 
 type DefaultImpl struct {
@@ -32,12 +33,25 @@ type DefaultImpl struct {
 
 var _ Authorizer = &DefaultImpl{}
 
+func (a *DefaultImpl) Logout() error {
+	if a.store != nil {
+		if err := a.store.Clear(); err != nil {
+			return errors.Wrap(err, "error removing authentication info from store")
+		}
+	}
+	return nil
+}
+
 func (a *DefaultImpl) Authorize(ctx context.Context) (Authentication, error) {
+	return a.authorize(ctx, true)
+}
+
+func (a *DefaultImpl) authorize(ctx context.Context, loadFromStore bool) (Authentication, error) {
 	if ctx.Err() != nil {
 		return Authentication{}, ctx.Err()
 	}
 
-	if a.store != nil {
+	if loadFromStore && a.store != nil {
 		loaded, err := a.loadFromStore(ctx)
 		if err != nil {
 			a.logger.Warningf("failed to load authentication from store: %v", err)
